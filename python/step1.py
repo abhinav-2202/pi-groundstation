@@ -1,7 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from pathlib import Path
 
-raw = np.fromfile("modes1.bin", dtype = np.uint8)
+HERE = Path(__file__).parent
+FILE = HERE.parent / "recordings" / "modes1.bin"
+
+raw = np.fromfile(FILE, dtype=np.uint8)
 
 print("Numbers in file = ", len(raw))
 print("First 20 numbers = ", raw[:20])
