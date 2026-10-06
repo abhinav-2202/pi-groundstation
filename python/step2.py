@@ -16,3 +16,23 @@ start = 11523            # Zooming into one message
 
 for k in range(10):
     print(k, mag[start + k])
+
+def is_preamble(mag, i):
+    highs = [mag[i], mag[i+2], mag[i+7], mag[i+9]]
+    lows = [mag[i+1], mag[i+3], mag[i+4], mag[i+5], mag[i+6], mag[i+8]]
+
+    if min(highs) > max(lows):
+        return True
+    else:
+        return False
+
+found = []
+
+for i in range(len(mag) - 10):      # -10 so that program won't look after file ends and crashes
+    if is_preamble(mag,i):
+        found.append(i)
+
+print("Preambles found: ", len(found))
+print("First 10 positions: ", found[:10])
+
+# Preamble detector: find all message's starting point from the recording
