@@ -115,6 +115,18 @@ def get_callsign(bits):
         callsign = callsign + CHARSET[number]
     return callsign.strip()                         # .strip() removes extra spaces added at the end
 
+# Decoding altitude in feet (type code = 9 to 18)
+def get_altitude(bits):
+    alt_bits = bits[40:52]                          # 12 altitude bits
+    q_bit = alt_bits[7]
+
+    if q_bit == 0:
+        return None                                 # old coding system - we skip this method
+
+    n_bits = alt_bits[:7] + alt_bits[8:]            # remove q bit - 11 bits
+    n = bits_to_number(n_bits)
+    return 25*n - 1000                              # -1000 to handle airports below sealevel
+
 # Main Program
 def main():
     # 1. Load and calculate magnitudes
@@ -180,6 +192,19 @@ def main():
         if 1 <= tc <= 4:
             print("Aircraft", get_icao(bits), "Callsign: ", get_callsign(bits))
             break
+
+    # 9. Altitude from every position message
+    print()
+    altitudes = []
+    for i in good:
+        bits = read_bits(mag, i, LONG_MESSAGE_BITS)
+        tc = get_type_code(bits)
+        if 9 <= tc <= 18:
+            altitudes.append(get_altitude(bits))
+
+    print("Position messages: ", len(altitudes))
+    print("First altitude: ", altitudes[0], " ft")
+    print("Last altitude: ", altitudes[-1], " ft")
 
 # Run main() only when this file is run directly
 if __name__ == "__main__":
