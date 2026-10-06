@@ -93,6 +93,28 @@ def crc_remainder(bits, gen):
 def crc_ok(bits):
     return sum(crc_remainder(bits, CRC_GENERATOR)) == 0
 
+# Decode the main message contents
+# Aircraft's unique 24 bit ID (bits 8-31) as hex characters
+def get_icao(bits):
+    number = bits_to_number(bits[8:32])
+    return format(number, "06X")
+
+# Type code - first 5 bits of the main data (bits 32-36)
+def get_type_code(bits):
+    return bits_to_number(bits[32:37]) 
+
+# Decoding callsign message (type code = 1 to 4)
+# Lookup table - character at position n is the meaning of number n
+CHARSET = "#ABCDEFGHIJKLMNOPQRSTUVWXYZ##### ###############0123456789######"
+
+def get_callsign(bits):
+    callsign = ""
+    for k in range(8):
+        start = 40 + 6*k
+        number = bits_to_number(bits[start:start + 6])
+        callsign = callsign + CHARSET[number]
+    return callsign.strip()                         # .strip() removes extra spaces added at the end
+
 # Main Program
 def main():
     # 1. Load and calculate magnitudes
@@ -125,6 +147,39 @@ def main():
     for i in good[:5]:
         bits = read_bits(mag, i, LONG_MESSAGE_BITS)
         print(" sample", i, ":", bits_to_hex(bits))
+
+    # 6. Split message into its parts
+    print()
+    bits = read_bits(mag, good[0], LONG_MESSAGE_BITS)
+    print("Message:   ", bits_to_hex(bits))
+    print("DF:        ", bits_to_number(bits[0:5]))
+    print("ICAO:      ", get_icao(bits))
+    print("Type code: ", get_type_code(bits))
+
+    # 7. Count the type codes across all real messages
+    print()
+    tc_counts = {}
+    for i in good:
+        bits = read_bits(mag, i, LONG_MESSAGE_BITS)
+        tc = get_type_code(bits)
+        tc_counts[tc] = tc_counts.get(tc, 0) + 1    # storing in dictionary as key and value pairs
+
+    for tc in sorted(tc_counts):
+        print("Type code ", tc, ":", tc_counts[tc], " messages")
+
+    # 8a. Testing callsign decoder with existing example
+    print()
+    example = "8D4840D6202CC371C32CE0576098"
+    example_bits = [int(c) for c in format(int(example, 16), "0112b")]
+    print("Example callsign: ", get_callsign(example_bits))
+
+    # 8b. Find callsign in our recording
+    for i in good:
+        bits = read_bits(mag, i, LONG_MESSAGE_BITS)
+        tc = get_type_code(bits)
+        if 1 <= tc <= 4:
+            print("Aircraft", get_icao(bits), "Callsign: ", get_callsign(bits))
+            break
 
 # Run main() only when this file is run directly
 if __name__ == "__main__":
