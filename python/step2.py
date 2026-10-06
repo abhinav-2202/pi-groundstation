@@ -34,5 +34,3 @@ for i in range(len(mag) - 10):      # -10 so that program won't look after file 
 
 print("Preambles found: ", len(found))
 print("First 10 positions: ", found[:10])
-
-# Preamble detector: find all message's starting point from the recording
