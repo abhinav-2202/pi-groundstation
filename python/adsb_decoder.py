@@ -10,6 +10,7 @@ Steps:
     3. Read the bits after preamble to determine Downlink Format
        (Only DF 17 format is for ADS-B messages)
     4. Check each message with CRC (to filter fake messages)
+    5. Check type code and decode information from the message
 """
 
 from pathlib import Path
