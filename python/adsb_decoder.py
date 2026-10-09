@@ -14,6 +14,7 @@ Steps:
 
 from pathlib import Path
 import numpy as np
+import math
 
 # Path to recording
 HERE = Path(__file__).parent
@@ -127,6 +128,49 @@ def get_altitude(bits):
     n = bits_to_number(n_bits)
     return 25*n - 1000                              # -1000 to handle airports below sealevel
 
+# Decoding velocity in knots (type code = 19)
+def get_velocity_parts(bits):
+    ew_dir = bits[45];                              # 0 = east ; 1 = west
+    ew_speed = bits_to_number(bits[46:56]) - 1      # -1 is for 0th bit
+
+    ns_dir = bits[56];
+    ns_speed = bits_to_number(bits[57:67]) - 1
+
+    if ew_dir == 1:
+        v_east = -ew_speed
+    else:
+        v_east = ew_speed
+
+    if ns_dir == 1:
+        v_north = -ns_speed
+    else:
+        v_north = ns_speed
+
+    return v_east, v_north
+
+# Decoding exact speed and direction using velocity parts
+# Ground speed in knots and heading in degrees from North
+def get_speed_and_heading(bits):
+    v_east, v_north = get_velocity_parts(bits)
+    speed = math.sqrt(v_east**2 + v_north**2)
+
+    heading = math.degrees(math.atan2(v_east, v_north))
+    heading = heading % 360
+
+    return speed, heading
+
+# Decoding vertical rate
+# Ascend (+) or Descent (-) rate in feet per minute (steps of 64)
+def get_vertical_rate(bits):
+    direction = bits[68]                            # 0 = ascend ; 1 = descent
+    number = bits_to_number(bits[69:78])            # 9 bits
+    rate = (number - 1) * 64
+
+    if direction == 1:
+        rate = -rate
+
+    return rate
+
 # Main Program
 def main():
     # 1. Load and calculate magnitudes
@@ -205,6 +249,17 @@ def main():
     print("Position messages: ", len(altitudes))
     print("First altitude: ", altitudes[0], " ft")
     print("Last altitude: ", altitudes[-1], " ft")
+
+    # 10. Velocity : Speed, Heading and Vertical rate
+    print()
+    for i in good:
+        bits = read_bits(mag, i, LONG_MESSAGE_BITS)
+        if get_type_code(bits) == 19:
+            speed, heading = get_speed_and_heading(bits)
+            vrate = get_vertical_rate(bits)
+            print("Speed: ", round(speed), "knots   Heading: ", round(heading,1),
+                  "degrees  Vertical rate: ", vrate, "ft/min")
+            break
 
 # Run main() only when this file is run directly
 if __name__ == "__main__":
