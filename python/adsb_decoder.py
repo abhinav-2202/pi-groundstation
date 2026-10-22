@@ -172,6 +172,44 @@ def get_vertical_rate(bits):
 
     return rate
 
+# Decoding position - lat and long (type code = 9 to 18)
+# Get raw position fields from position message
+def get_cpr_parts(bits):
+    odd_flag = bits[53]                             # 0 = even message ; 1 = odd message
+    lat_number = bits_to_number(bits[54:71])
+    lon_number = bits_to_number(bits[71:88])
+
+    lat_fraction = lat_number / 131072              # Dividing by 2 ^ 17
+    lon_fraction = lon_number / 131072
+
+    return odd_flag, lat_fraction, lon_fraction
+
+# Finding lat using one odd and one even message
+def decode_latitude(f_even, f_odd):
+    j = math.floor(59 * f_even - 60 * f_odd + 0.5)  # finding zone number
+
+    lat_even = (360/60) * ((j % 60) + f_even)       # modulo handles wrap around after last zone
+    lat_odd = (360/59) * ((j % 59) + f_odd)
+
+    if lat_even >= 270:
+        lat_even = lat_even - 360
+    if lat_odd >= 270:
+        lat_odd = lat_odd - 360
+
+    return lat_even, lat_odd
+
+# Finding no.of longitude zones (NL) at a particular latitude using ADS-B standard
+def get_nl(lat):
+    if lat == 0:
+        return 59
+    if abs(lat) == 87:
+        return 2
+    if abs(lat) > 87:
+        return 1
+
+    a = 1 - (1 - math.cos(math.pi / 30)) / math.cos(math.radians(lat)) ** 2         # Formula for NL (acc to ADS-B standards)
+    return math.floor(2 * math.pi / math.acos(a))
+
 # Main Program
 def main():
     # 1. Load and calculate magnitudes
@@ -261,6 +299,12 @@ def main():
             print("Speed: ", round(speed), "knots   Heading: ", round(heading,1),
                   "degrees  Vertical rate: ", vrate, "ft/min")
             break
+
+    # 11. Position test - get_nl
+    print()
+    for lat in [0, 17.4, 37.104, 37.11, 60, 80, 88]:
+        print("NL at ", lat, " degrees = ", get_nl(lat))
+
 
 # Run main() only when this file is run directly
 if __name__ == "__main__":
