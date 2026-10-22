@@ -210,6 +210,74 @@ def get_nl(lat):
     a = 1 - (1 - math.cos(math.pi / 30)) / math.cos(math.radians(lat)) ** 2         # Formula for NL (acc to ADS-B standards)
     return math.floor(2 * math.pi / math.acos(a))
 
+# Finding long using one odd and one even message
+def decode_longitude(f_even, f_odd, lat):
+    nl = get_nl(lat)
+    k = math.floor((nl - 1) * f_even - nl * f_odd + 0.5)
+
+    lon = (360 / nl) * ((k % nl) + f_even)
+
+    if lon >= 180:
+        lon = lon - 360
+
+    return lon
+
+# Decode every position from recording. Pair latest odd and even messages
+def decode_track(mag, good):
+    last_even = None
+    last_odd = None
+    track = []
+
+    for i in good:
+        bits = read_bits(mag, i, LONG_MESSAGE_BITS)
+        if not (9 <= get_type_code(bits) <= 18):
+            continue
+
+        odd, lat_f, lon_f = get_cpr_parts(bits)
+        if odd == 0:
+            last_even = (lat_f, lon_f)
+        else:
+            last_odd = (lat_f, lon_f)
+
+        if last_even is None or last_odd is None:
+            continue
+
+        lat_e, lat_o = decode_latitude(last_even[0], last_odd[0])
+        if get_nl(lat_e) != get_nl(lat_o):
+            continue
+
+        lon = decode_longitude(last_even[1], last_odd[1], lat_e)
+        track.append((lat_e, lon))
+
+    return track
+
+# Turning lat,lon into a readable format
+def format_position(lat, lon):
+    if lat >= 0:
+        ns = "N"
+    else:
+        ns = "S"
+
+    if lon >= 0:
+        ew = "E"
+    else:
+        ew = "W"
+
+    return f"{abs(lat):.4f} deg {ns}, {abs(lon):.4f} deg {ew}"
+
+# Distance (km) and direction (degrees from North) from first to last position
+def track_direction(track):
+    lat1, lon1 = track[0]
+    lat2, lon2 = track[-1]
+
+    north_km = (lat2 - lat1) * 111
+    east_km = (lon2 - lon1) * 111 * math.cos(math.radians(lat1))
+
+    distance = math.sqrt(north_km ** 2 + east_km ** 2)
+    direction = math.degrees(math.atan2(east_km, north_km)) % 360
+
+    return distance, direction
+
 # Main Program
 def main():
     # 1. Load and calculate magnitudes
@@ -300,10 +368,18 @@ def main():
                   "degrees  Vertical rate: ", vrate, "ft/min")
             break
 
-    # 11. Position test - get_nl
+    # 11. Position : Latitude and Longitude
     print()
-    for lat in [0, 17.4, 37.104, 37.11, 60, 80, 88]:
-        print("NL at ", lat, " degrees = ", get_nl(lat))
+    track = decode_track(mag, good)
+    print("Positions decoded: ", len(track))
+    print("First position: ", format_position(track[0][0], track[0][1]))
+    print("Last position: ", format_position(track[-1][0], track[-1][1]))
+
+    # 12. Checking if path matches heading
+    print()
+    distance, direction = track_direction(track)
+    print("Distance travelled: ", round(distance, 1), " km")
+    print("Direction of path: ", round(direction, 1), " degrees")
 
 
 # Run main() only when this file is run directly
