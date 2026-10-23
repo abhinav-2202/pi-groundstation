@@ -278,8 +278,91 @@ def track_direction(track):
 
     return distance, direction
 
-# Main Program
-def main():
+# ====================================================================================
+#                                AIRCRAFT TABLE
+# ====================================================================================
+
+# Blank card for a new aircraft
+def new_aircraft():
+    return {
+        "callsign": None,
+        "altitude": None,
+        "speed": None,
+        "heading": None,
+        "vrate": None,
+        "lat": None,
+        "lon": None,
+        "messages": 0,
+        "last_even": None,
+        "last_odd": None
+    }
+
+# Read one ADS-B message and update that aircraft's card
+def update_aircraft(aircraft, bits):
+    icao = get_icao(bits)
+    if icao not in aircraft:
+        aircraft[icao] = new_aircraft()
+
+    ac = aircraft[icao]
+    ac["messages"] = ac["messages"] + 1
+
+    tc = get_type_code(bits)
+
+    if 1 <= tc <= 4:
+        ac["callsign"] = get_callsign(bits)
+
+    elif 9 <= tc <= 18:
+        ac["altitude"] = get_altitude(bits)
+
+        odd, lat_f, lon_f = get_cpr_parts(bits)
+        if odd == 0:
+            ac["last_even"] = (lat_f, lon_f)
+        else:
+            ac["last_odd"] = (lat_f, lon_f)
+
+        if ac["last_even"] is not None and ac["last_odd"] is not None:
+            lat_e, lat_o = decode_latitude(ac["last_even"][0], ac["last_odd"][0])
+            if get_nl(lat_e) == get_nl(lat_o):
+                ac["lat"] = lat_e
+                ac["lon"] = decode_longitude(ac["last_even"][1], ac["last_odd"][1], lat_e)
+
+    elif tc == 19:
+        speed, heading = get_speed_and_heading(bits)
+        ac["speed"] = speed
+        ac["heading"] = heading
+        ac["vrate"] = get_vertical_rate(bits)
+
+# Format a value or '-' if not known
+def show(value, fmt):
+    if value is None:
+        return "-"
+    return format(value,fmt)
+
+# Print one row per aircraft
+def print_table(aircraft):
+    print(f"{'ICAO':<8}{'Callsign':<10}{'Altitude':>10}{'Speed':>8}"
+          f"{'Heading':>9}{'V/S':>8}   {'Position':<28}{'Msgs':>5}")
+    print("-" * 88)
+
+    for icao, ac in aircraft.items():
+        if ac["lat"] is None:
+            pos = "-"
+        else:
+            pos = format_position(ac["lat"], ac["lon"])
+
+        print(f"{icao:<8}"
+              f"{show(ac['callsign'], 's'):<10}"
+              f"{show(ac['altitude'], 'd'):>10}"
+              f"{show(ac['speed'], '.0f'):>8}"
+              f"{show(ac['heading'], '.1f'):>9}"
+              f"{show(ac['vrate'], 'd'):>8}   "
+              f"{pos:<28}"
+              f"{ac['messages']:>5}")
+
+# ====================================================================================
+
+# Checks for every stage (Kept to check later with C++)
+def run_checks():
     # 1. Load and calculate magnitudes
     mag = load_magnitude(RECORDING)
     print("Samples in recording: ", len(mag))
@@ -380,6 +463,29 @@ def main():
     distance, direction = track_direction(track)
     print("Distance travelled: ", round(distance, 1), " km")
     print("Direction of path: ", round(direction, 1), " degrees")
+
+# Main Program
+def main():
+    # 1. Load the recording
+    mag = load_magnitude(RECORDING)
+
+    # 2. Find real ADS-B messages (Preamble, DF 17, CRC)
+    good = []
+    for i in find_preambles(mag):
+        bits = read_bits(mag, i, LONG_MESSAGE_BITS)
+        if bits_to_number(bits[0:5]) == DF_ADSB and crc_ok(bits):
+            good.append(i)
+    print("Valid ADS-B messages: ", len(good))
+
+    # 3. Update each aircraft's card, one message at a time
+    aircraft = {}
+    for i in good:
+        bits = read_bits(mag, i, LONG_MESSAGE_BITS)
+        update_aircraft(aircraft, bits)
+
+    # 4. Print result
+    print()
+    print_table(aircraft)
 
 
 # Run main() only when this file is run directly
