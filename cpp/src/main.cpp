@@ -2,6 +2,7 @@
 #include <fstream>
 #include <vector>
 #include <cstdint>
+#include <cmath>
 
 int main(int argc, char* argv[])
 {
@@ -29,12 +30,32 @@ int main(int argc, char* argv[])
 
     std::cout << "Numbers in file: " << raw.size() << "\n";
 
-    std::cout << "First 20 nums: ";
-    for (int i = 0; i < 20; i++)
+    std::vector<float> mag;
+
+    for (size_t i = 0; i + 1 < raw.size(); i += 2)
     {
-        std::cout << " " << static_cast<int>(raw[i]);
+        float I = raw[i] - 127.5f;
+        float Q = raw[i+1] - 127.5f;
+        mag.push_back(std::sqrt(I * I + Q * Q));
+    }
+
+    std::cout << "Samples: " << mag.size() << "\n";
+    std::cout << "First 10 strengths:";
+    for (int i = 0; i < 10; i++)
+    {
+        std::cout << " " << mag[i];
     }
     std::cout << "\n";
+
+    float loudest = 0.0f;
+    for (size_t i = 0; i < mag.size(); i++)
+    {
+        if (mag[i] > loudest)
+        {
+            loudest = mag[i];
+        }
+    }
+    std::cout << "Loudest: " << loudest << "\n";
 
     return 0;
 }
