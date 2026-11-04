@@ -3,13 +3,19 @@
 #include <vector>
 #include <cstdint>
 
-int main()
+int main(int argc, char* argv[])
 {
-    std::ifstream file("../recordings/modes1.bin", std::ios::binary);
+    if (argc < 2)
+    {
+        std::cout << "Usage: ./adsb <recording file>\n";
+        return 1;
+    }
+    
+    std::ifstream file(argv[1], std::ios::binary);
 
     if (!file)
     {
-        std::cout << "Could not open file\n";
+        std::cout << "Could not open " << argv[1] << "\n";
         return 1;
     }
 
