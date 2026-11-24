@@ -5,6 +5,7 @@
 #include "signal.hpp"
 #include "preamble.hpp"
 #include "bits.hpp"
+#include "crc.hpp"
 
 int main(int argc, char* argv[])
 {
@@ -40,17 +41,24 @@ int main(int argc, char* argv[])
     std::cout << "DF at 11523: " << bits_to_number(read_bits(mag, 11523, 5), 0, 5) << "\n";
     std::cout << "DF at 11683: " << bits_to_number(read_bits(mag, 11683, 5), 0, 5) << "\n";
 
-    // Count how many candidates are DF 17 (ADS-B)
-    int df17 = 0;
+    // Find real ADS-B messages: DF17 and CRC pass
+    std::vector<size_t> good;
     for (size_t k = 0; k < candidates.size(); k++)
     {
-        std::vector<uint8_t> bits = read_bits(mag, candidates[k], 5);
-        if(bits_to_number(bits, 0, 5) == 17)
+        std::vector<uint8_t> bits = read_bits(mag, candidates[k], 112);
+        if (bits_to_number(bits, 0, 5) == 17 && crc_ok(bits))
         {
-            df17++;
+            good.push_back(candidates[k]);
         }
     }
-    std::cout << "DF 17 candidates: " << df17 << "\n";
+    std::cout << "Valid ADS-B messages: " << good.size() << "\n";
+
+    std::cout << "First 5 positions: ";
+    for (size_t k = 0; k < 5 && k < good.size(); k++)
+    {
+        std::cout << " " << good[k];
+    }
+    std::cout << "\n";
 
     return 0;
 }
