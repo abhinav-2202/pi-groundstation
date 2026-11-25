@@ -6,6 +6,7 @@
 #include "preamble.hpp"
 #include "bits.hpp"
 #include "crc.hpp"
+#include "decode.hpp"
 
 int main(int argc, char* argv[])
 {
@@ -59,6 +60,27 @@ int main(int argc, char* argv[])
         std::cout << " " << good[k];
     }
     std::cout << "\n";
+
+    // Decode the first real message
+    std::vector<uint8_t> first = read_bits(mag, good[0], 112);
+    std::cout << "ICAO:      " << get_icao(first) << "\n";
+    std::cout << "Type code: " << get_type_code(first) << "\n";
+    std::cout << "Altitude:  " << get_altitude(first) << " ft\n";
+
+    // Find the first identification message (TC 1-4) and print callsign
+    for (size_t n = 0; n < good.size(); n++)
+    {
+        std::vector<uint8_t> msg = read_bits(mag, good[n], 112);
+        uint32_t tc = get_type_code(msg);
+
+        if (tc >= 1 && tc <= 4)
+        {
+            std::cout << "Aircraft " << get_icao(msg)
+                      << " Callsign: " << get_callsign(msg) << "\n";
+
+            break;
+        }
+    }
 
     return 0;
 }
