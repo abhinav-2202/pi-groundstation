@@ -1,5 +1,6 @@
 #include "decode.hpp"
 #include "bits.hpp"
+#include <cmath>
 
 std::string to_hex(uint32_t value, int digits)
 {
@@ -55,4 +56,38 @@ int get_altitude(const std::vector<uint8_t>& bits)
     uint32_t n = (left << 4) | right;
 
     return static_cast<int>(n) * 25 - 1000;
+}
+
+Velocity get_velocity(const std::vector<uint8_t>& bits)
+{
+    const double PI = 3.14159265358979;
+
+    int east = static_cast<int>(bits_to_number(bits, 46, 10)) - 1;
+    int north = static_cast<int>(bits_to_number(bits, 57, 10)) - 1;
+
+    if (bits[45] == 1)
+    {
+        east = -east;
+    }
+    if (bits[56] == 1)
+    {
+        north = -north;
+    }
+
+    Velocity v;
+    v.speed = std::sqrt(east * east + north * north);
+    v.heading = std::atan2(east, north) * 180.0 / PI;
+    if (v.heading < 0)
+    {
+        v.heading += 360.0;
+    }
+    
+    int rate = (static_cast<int>(bits_to_number(bits, 69, 9)) - 1) * 64;
+    if (bits[68] == 1)
+    {
+        rate = -rate;
+    }
+    v.vertical_rate = rate;
+
+    return v;
 }

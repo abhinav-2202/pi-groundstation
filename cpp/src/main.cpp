@@ -82,5 +82,20 @@ int main(int argc, char* argv[])
         }
     }
 
+    // Find the first velocity message (TC 19) and print speed and heading
+    for (size_t n = 0; n < good.size(); n++)
+    {
+        std::vector<uint8_t> msg = read_bits(mag, good[n], 112);
+
+        if (get_type_code(msg) == 19)
+        {
+            Velocity v = get_velocity(msg);
+            std::cout << "Speed:   " << v.speed << " knots\n";
+            std::cout << "Heading: " << v.heading << " deg\n";
+            std::cout << "V/S:     " << v.vertical_rate << " ft/min\n";
+            break;
+        }
+    }
+
     return 0;
 }

@@ -21,3 +21,15 @@ const int NO_ALTITUDE = -9999;
 
 // Barometric altitude in feet from TC 9-18 messages (bits 40-51)
 int get_altitude(const std::vector<uint8_t>& bits);
+
+// Speed (knots) and heading (degrees, 0 = north, clockwise)
+// Vertical rate (ft/min, negative = descending)
+struct Velocity
+{
+    double speed;
+    double heading;
+    int vertical_rate;
+};
+
+// Speed and heading from TC 19 message
+Velocity get_velocity(const std::vector<uint8_t>& bits);
