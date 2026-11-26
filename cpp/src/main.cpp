@@ -7,6 +7,7 @@
 #include "bits.hpp"
 #include "crc.hpp"
 #include "decode.hpp"
+#include "aircraft.hpp"
 
 int main(int argc, char* argv[])
 {
@@ -152,5 +153,25 @@ int main(int argc, char* argv[])
     std::cout << "First position:    " << first_pos.lat << ", " << first_pos.lon << "\n";
     std::cout << "Last position:    " << last_pos.lat << ", " << last_pos.lon << "\n";
      
+    // Build one card for our aircraft from every good message
+    Aircraft plane = new_aircraft(get_icao(first));
+    for (size_t n = 0; n < good.size(); n++)
+    {
+        std::vector<uint8_t> msg = read_bits(mag, good[n], 112);
+        if (get_icao(msg) == plane.icao)
+        {
+            update_aircraft(plane, msg);
+        }
+    }
+
+    std::cout << "\nCard for " << plane.icao << "\n";
+    std::cout << "  Callsign:  " << plane.callsign << "\n";
+    std::cout << "  Altitude:  " << plane.altitude << " ft\n";
+    std::cout << "  Speed:     " << plane.velocity.speed << " kt\n";
+    std::cout << "  Heading:   " << plane.velocity.heading << " deg\n";
+    std::cout << "  V/S:       " << plane.velocity.vertical_rate << " ft/min\n";
+    std::cout << "  Position:  " << plane.position.lat << ", " << plane.position.lon << "\n";
+    std::cout << "  Messages:  " << plane.messages << "\n";
+    
     return 0;
 }
