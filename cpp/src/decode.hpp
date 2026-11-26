@@ -33,3 +33,44 @@ struct Velocity
 
 // Speed and heading from TC 19 message
 Velocity get_velocity(const std::vector<uint8_t>& bits);
+
+// The three CPR pieces from a position message (TC 9-18)
+struct CprParts
+{
+    bool odd;       // true = odd message, false = even
+    double lat;     // latitude fraction, 0 to 1
+    double lon;     // longitude fraction, 0 to 1
+};
+
+// Read the odd flag and the two 17-bit CPR fractions
+CprParts get_cpr_parts(const std::vector<uint8_t>& bits);
+
+// Clock-style reminder: always 0 to b-1, even when a is negative
+int positive_mod(int a, int b);
+
+// The two latitude answers, one from each grid
+struct Latitudes
+{
+    double even;
+    double odd;
+};
+
+// Latitude in degrees from one even and one odd message
+Latitudes decode_latitudes(const CprParts& even, const CprParts& odd);
+
+// No.of longitude zones at this latitude (1 to 59)
+int get_nl(double lat);
+
+// Longitude in degrees from one even and one odd message, using the even grid
+double decode_longitude(const CprParts& even, const CprParts& odd, int nl);
+
+// Decoded position. valid = false means "no answer"
+struct Position
+{
+    bool valid;
+    double lat;
+    double lon;
+};
+
+// Full position from one even meesage and one odd message (checks if NLs match)
+Position decode_position(const CprParts& even, const CprParts& odd);

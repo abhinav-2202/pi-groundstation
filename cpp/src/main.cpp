@@ -97,5 +97,60 @@ int main(int argc, char* argv[])
         }
     }
 
+    // Follow the plane through the whole recording
+    CprParts even = {};
+    CprParts odd = {};
+    bool have_even = false;
+    bool have_odd = false;
+
+    int count = 0;
+    Position first_pos = {};
+    Position last_pos = {};
+
+    for (size_t n = 0; n < good.size(); n++)
+    {
+        std::vector<uint8_t> msg = read_bits(mag, good[n], 112);
+        uint32_t tc = get_type_code(msg);
+
+        if (tc < 9 || tc > 18)
+        {
+            continue;
+        }
+
+        CprParts p = get_cpr_parts(msg);
+        if (p.odd)
+        {
+            odd = p;
+            have_odd = true;
+        }
+        else
+        {
+            even = p;
+            have_even = true;
+        }
+
+        if (!have_even || !have_odd)
+        {
+            continue;
+        }
+
+        Position pos = decode_position(even, odd);
+        if (!pos.valid)
+        {
+            continue;
+        }
+
+        if (count == 0)
+        {
+            first_pos = pos;
+        }
+        last_pos = pos;
+        count++;
+    }
+
+    std::cout << "Positions decoded: " << count << "\n";
+    std::cout << "First position:    " << first_pos.lat << ", " << first_pos.lon << "\n";
+    std::cout << "Last position:    " << last_pos.lat << ", " << last_pos.lon << "\n";
+     
     return 0;
 }
